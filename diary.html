@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日記</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#17181d;
+    --bg-soft:#1f2027;
+    --paper:#f2e9d8;
+    --paper-line: rgba(179,58,46,0.07);
+    --paper-edge:#e5d9bd;
+    --ink:#2b2621;
+    --ink-soft:#7a6f5e;
+    --ink-faint:#b8ac95;
+    --seal:#b23a2e;
+    --seal-dark:#8f2b21;
+    --seal-soft: rgba(178,58,46,0.14);
+    --jade:#4c7a6b;
+    --jade-soft: rgba(76,122,107,0.14);
+    --shadow: rgba(10,8,6,0.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(ellipse at 30% 0%, #22232b 0%, var(--bg) 55%);
+    font-family:'Noto Sans TC', sans-serif;
+    color:var(--ink);
+    padding:32px 16px;
+  }
+
+  .app{
+    position:relative;
+    width:100%;
+    max-width:420px;
+  }
+
+  .gear-btn{
+    position:absolute;
+    top:-46px;
+    right:0;
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,0.14);
+    background:var(--bg-soft);
+    color:var(--ink-faint);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    font-size:16px;
+    transition:transform .25s ease, color .25s ease;
+  }
+  .gear-btn:hover{ color:#e8dcc4; transform:rotate(35deg); }
+
+  .paper{
+    position:relative;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 27px,
+        var(--paper-line) 27px, var(--paper-line) 28px
+      ),
+      var(--paper);
+    border-radius:6px 6px 3px 3px;
+    box-shadow:
+      0 1px 0 var(--paper-edge) inset,
+      0 24px 48px -18px var(--shadow),
+      0 2px 0 var(--paper-edge);
+    padding:26px 22px 22px;
+    min-height:480px;
+    overflow:hidden;
+  }
+  .paper::before{
+    /* folded corner */
+    content:"";
+    position:absolute;
+    top:0; right:0;
+    width:0; height:0;
+    border-style:solid;
+    border-width:0 22px 22px 0;
+    border-color:transparent var(--paper-edge) transparent transparent;
+    opacity:.9;
+  }
+
+  .view{ display:none; }
+  .view.active{ display:block; animation: fadeIn .28s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  /* ---------- calendar header ---------- */
+  .cal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .cal-title{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:.02em;
+  }
+  .nav-btns{ display:flex; align-items:center; gap:4px; }
+  .nav-btn, .today-btn{
+    background:none;
+    border:1px solid transparent;
+    color:var(--ink-soft);
+    font-size:16px;
+    width:30px; height:30px;
+    border-radius:50%;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s ease, color .2s ease;
+  }
+  .nav-btn:hover{ background:var(--seal-soft); color:var(--seal); }
+  .today-btn{
+    width:auto; padding:0 10px; font-size:12px; font-family:'Noto Sans TC';
+    border:1px solid var(--paper-edge);
+  }
+  .today-btn:hover{ background:var(--seal-soft); color:var(--seal); border-color:var(--seal-soft); }
+
+  .weekdays{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    margin-bottom:6px;
+  }
+  .weekdays span{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-faint);
+    letter-spacing:.05em;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    grid-auto-rows:48px;
+    gap:2px;
+  }
+  .cell{
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    color:var(--ink);
+    border-radius:8px;
+    cursor:pointer;
+    user-select:none;
+    transition:background .15s ease;
+  }
+  .cell:hover{ background:rgba(178,58,46,0.06); }
+  .cell.other-month{ color:var(--ink-faint); cursor:default; opacity:.45; }
+  .cell.other-month:hover{ background:none; }
+  .cell.today{ font-weight:700; }
+  .cell.today::after{
+    content:"";
+    position:absolute;
+    width:28px; height:28px;
+    border-radius:50%;
+    border:1.4px solid var(--seal);
+    opacity:.55;
+  }
+  .stamp-dot{
+    position:absolute;
+    top:3px; right:5px;
+    width:11px; height:11px;
+    background:var(--seal);
+    border-radius:47% 53% 45% 55% / 55% 45% 53% 47%;
+    box-shadow:0 0 0 1.5px rgba(178,58,46,0.18);
+    opacity:.88;
+  }
+
+  /* ---------- editor ---------- */
+  .editor-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .back-btn{
+    background:none; border:none; cursor:pointer;
+    color:var(--ink-soft); font-size:13px;
+    display:flex; align-items:center; gap:4px;
+    padding:4px 0;
+  }
+  .back-btn:hover{ color:var(--seal); }
+  .date-block{ text-align:right; }
+  .date-main{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:21px;
+    line-height:1.2;
+  }
+  .date-sub{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+
+  .stamp-feedback{
+    position:absolute;
+    top:70px; right:22px;
+    width:46px; height:46px;
+    border-radius:47% 53% 45% 55% / 55% 45% 53% 47%;
+    background:var(--seal);
+    color:#f2e9d8;
+    font-family:'Noto Serif TC', serif;
+    font-size:16px;
+    font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0;
+    transform:scale(0.4) rotate(-14deg);
+    pointer-events:none;
+    box-shadow:0 4px 10px rgba(0,0,0,0.25);
+  }
+  .stamp-feedback.play{
+    animation: stampDown .55s cubic-bezier(.2,1.6,.4,1) forwards;
+  }
+  @keyframes stampDown{
+    0%{ opacity:0; transform:scale(2.2) rotate(-14deg); }
+    55%{ opacity:.92; transform:scale(0.92) rotate(-8deg); }
+    75%{ transform:scale(1.05) rotate(-10deg); }
+    100%{ opacity:.92; transform:scale(1) rotate(-9deg); }
+  }
+
+  textarea{
+    width:100%;
+    min-height:300px;
+    resize:vertical;
+    border:none;
+    background:transparent;
+    font-family:'Noto Sans TC', sans-serif;
+    font-size:14.5px;
+    line-height:28px;
+    color:var(--ink);
+    outline:none;
+    padding:0;
+  }
+  textarea::placeholder{ color:var(--ink-faint); }
+
+  .editor-footer{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:10px;
+    padding-top:12px;
+    border-top:1px solid var(--paper-edge);
+  }
+  .char-count{ font-size:11px; color:var(--ink-faint); }
+  .footer-right{ display:flex; align-items:center; gap:10px; }
+  .sync-status{ font-size:11px; color:var(--ink-faint); display:flex; align-items:center; gap:5px; }
+  .sync-dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-faint); }
+  .sync-dot.ok{ background:var(--jade); }
+  .sync-dot.err{ background:var(--seal); }
+  .sync-dot.pending{ background:#c9a227; }
+
+  .save-btn, .delete-btn{
+    font-family:'Noto Sans TC';
+    font-size:13px;
+    border-radius:20px;
+    padding:8px 18px;
+    cursor:pointer;
+    border:none;
+  }
+  .save-btn{ background:var(--seal); color:#f2e9d8; font-weight:700; }
+  .save-btn:hover{ background:var(--seal-dark); }
+  .delete-btn{
+    background:none;
+    color:var(--ink-faint);
+    border:1px solid var(--paper-edge);
+    padding:8px 14px;
+  }
+  .delete-btn:hover{ color:var(--seal); border-color:var(--seal-soft); }
+
+  /* ---------- settings modal ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0;
+    background:rgba(10,8,6,0.55);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+    padding:20px;
+  }
+  .modal-backdrop.active{ display:flex; }
+  .modal{
+    background:var(--paper);
+    border-radius:10px;
+    padding:22px;
+    width:100%;
+    max-width:380px;
+    box-shadow:0 24px 48px rgba(0,0,0,0.4);
+  }
+  .modal h3{
+    font-family:'Noto Serif TC', serif;
+    margin:0 0 4px;
+    font-size:18px;
+  }
+  .modal p.hint{ font-size:12px; color:var(--ink-soft); margin:0 0 16px; line-height:1.6; }
+  .field-label{ font-size:12px; color:var(--ink-soft); margin-bottom:6px; display:block; }
+  .modal input[type=text]{
+    width:100%;
+    padding:9px 10px;
+    border-radius:6px;
+    border:1px solid var(--paper-edge);
+    background:#fbf7ee;
+    font-size:12.5px;
+    color:var(--ink);
+    margin-bottom:14px;
+  }
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px;
+  }
+  .switch{
+    width:38px; height:22px;
+    background:var(--paper-edge);
+    border-radius:20px;
+    position:relative;
+    cursor:pointer;
+    transition:background .2s ease;
+    flex:none;
+  }
+  .switch.on{ background:var(--jade); }
+  .switch::after{
+    content:"";
+    position:absolute;
+    top:2px; left:2px;
+    width:18px; height:18px;
+    border-radius:50%;
+    background:#fff;
+    transition:transform .2s ease;
+  }
+  .switch.on::after{ transform:translateX(16px); }
+
+  .modal-actions{ display:flex; gap:8px; margin-top:4px; }
+  .btn-secondary, .btn-primary{
+    flex:1;
+    padding:10px;
+    border-radius:8px;
+    font-size:12.5px;
+    cursor:pointer;
+    border:none;
+    font-family:'Noto Sans TC';
+  }
+  .btn-secondary{ background:none; border:1px solid var(--paper-edge); color:var(--ink-soft); }
+  .btn-primary{ background:var(--seal); color:#f2e9d8; font-weight:700; }
+  .modal-log{
+    margin-top:12px;
+    font-size:11px;
+    color:var(--ink-soft);
+    min-height:16px;
+    line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <button class="gear-btn" id="gearBtn" title="雲端同步設定">⚙</button>
+
+  <div class="paper">
+    <!-- calendar view -->
+    <div class="view active" id="calendarView">
+      <div class="cal-header">
+        <div class="cal-title" id="calTitle">2026年7月</div>
+        <div class="nav-btns">
+          <button class="today-btn" id="todayBtn">今天</button>
+          <button class="nav-btn" id="prevBtn">‹</button>
+          <button class="nav-btn" id="nextBtn">›</button>
+        </div>
+      </div>
+      <div class="weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- editor view -->
+    <div class="view" id="editorView">
+      <div class="editor-header">
+        <button class="back-btn" id="backBtn">‹ 返回月曆</button>
+        <div class="date-block">
+          <div class="date-main" id="dateMain">7月12日</div>
+          <div class="date-sub" id="dateSub">星期日</div>
+        </div>
+      </div>
+      <div class="stamp-feedback" id="stampFeedback">記</div>
+      <textarea id="entryText" placeholder="今天想寫點什麼呢？"></textarea>
+      <div class="editor-footer">
+        <div class="char-count" id="charCount">0 字</div>
+        <div class="footer-right">
+          <div class="sync-status" id="syncStatus"><span class="sync-dot" id="syncDot"></span><span id="syncText">未同步</span></div>
+          <button class="delete-btn" id="deleteBtn" style="display:none;">刪除</button>
+          <button class="save-btn" id="saveBtn">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- settings modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3>雲端同步</h3>
+    <p class="hint">貼上你部署好的 Google Apps Script 網頁應用程式網址，日記就會自動備份到你的 Google 文件（依日期分段）。（設定方式請見 diary-sync.gs 檔案內的說明）</p>
+    <label class="field-label">Web App URL</label>
+    <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/xxx/exec">
+    <div class="toggle-row">
+      <span class="field-label" style="margin:0;">每次儲存自動同步</span>
+      <div class="switch" id="autoSyncSwitch"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modalCancel">取消</button>
+      <button class="btn-primary" id="modalSave">儲存設定</button>
+    </div>
+    <div class="modal-actions" style="margin-top:8px;">
+      <button class="btn-secondary" id="syncAllBtn" style="flex:1;">立即同步全部日記到文件</button>
+    </div>
+    <div class="modal-log" id="modalLog"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- state ----------------
+  var today = new Date();
+  var viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  var selectedDateStr = null; // "YYYY-MM-DD"
+  var monthCache = {}; // ym -> {dd: {content, updatedAt}}
+  var settings = { scriptUrl: "", autoSync: false, lastSyncedAt: null };
+
+  var weekdayNames = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+
+  // ---------------- helpers ----------------
+  function pad2(n){ return n < 10 ? "0"+n : ""+n; }
+  function ymOf(d){ return d.getFullYear() + "-" + pad2(d.getMonth()+1); }
+  function ymdOf(d){ return ymOf(d) + "-" + pad2(d.getDate()); }
+  function monthKey(ym){ return "diary:" + ym; }
+
+  // ---------------- storage ----------------
+  // Uses the browser's own localStorage, so this works on any normal web
+  // host (GitHub Pages, Netlify, your own domain, etc). Data lives only in
+  // the browser that wrote it -- that's exactly what the Google Sheet sync
+  // is for: a real backup that survives clearing browser data / switching devices.
+  async function loadMonth(ym){
+    if (monthCache[ym]) return monthCache[ym];
+    try{
+      var raw = localStorage.getItem(monthKey(ym));
+      var obj = raw ? JSON.parse(raw) : {};
+      monthCache[ym] = obj;
+      return obj;
+    }catch(e){
+      monthCache[ym] = {};
+      return {};
+    }
+  }
+
+  async function saveMonth(ym, obj){
+    monthCache[ym] = obj;
+    try{
+      localStorage.setItem(monthKey(ym), JSON.stringify(obj));
+    }catch(e){
+      console.error("storage set failed", e);
+    }
+  }
+
+  async function loadSettings(){
+    try{
+      var raw = localStorage.getItem("diary-settings");
+      if (raw){
+        var s = JSON.parse(raw);
+        settings = Object.assign(settings, s);
+      }
+    }catch(e){ /* no settings yet */ }
+  }
+
+  async function saveSettings(){
+    try{
+      localStorage.setItem("diary-settings", JSON.stringify(settings));
+    }catch(e){ console.error("settings save failed", e); }
+  }
+
+  // list all month keys under "diary:" prefix, used for "sync all"
+  async function listAllEntries(){
+    var all = []; // { date, content, updatedAt }
+    try{
+      var keys = [];
+      for (var i=0;i<localStorage.length;i++){
+        var k = localStorage.key(i);
+        if (k.indexOf("diary:") === 0) keys.push(k);
+      }
+      for (var j=0;j<keys.length;j++){
+        var ym = keys[j].replace("diary:", "");
+        var obj = await loadMonth(ym);
+        Object.keys(obj).forEach(function(dd){
+          var entry = obj[dd];
+          if (entry && entry.content){
+            all.push({ date: ym + "-" + dd, content: entry.content, updatedAt: entry.updatedAt });
+          }
+        });
+      }
+    }catch(e){ console.error("list failed", e); }
+    return all;
+  }
+
+  // ---------------- rendering: calendar ----------------
+  async function renderCalendar(){
+    var y = viewDate.getFullYear(), m = viewDate.getMonth();
+    document.getElementById("calTitle").textContent = y + "年" + (m+1) + "月";
+
+    var ym = ymOf(viewDate);
+    var entries = await loadMonth(ym);
+
+    var firstDow = new Date(y, m, 1).getDay();
+    var daysInMonth = new Date(y, m+1, 0).getDate();
+    var daysInPrevMonth = new Date(y, m, 0).getDate();
+
+    var grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    var totalCells = 42;
+    for (var i=0;i<totalCells;i++){
+      var cell = document.createElement("div");
+      cell.className = "cell";
+      var dayNum, cellDate, inMonth = true;
+
+      if (i < firstDow){
+        dayNum = daysInPrevMonth - firstDow + 1 + i;
+        cellDate = new Date(y, m-1, dayNum);
+        inMonth = false;
+      } else if (i >= firstDow + daysInMonth){
+        dayNum = i - (firstDow + daysInMonth) + 1;
+        cellDate = new Date(y, m+1, dayNum);
+        inMonth = false;
+      } else {
+        dayNum = i - firstDow + 1;
+        cellDate = new Date(y, m, dayNum);
+      }
+
+      cell.textContent = dayNum;
+
+      if (!inMonth){
+        cell.classList.add("other-month");
+      } else {
+        var dateStr = ymdOf(cellDate);
+        if (dateStr === ymdOf(today)) cell.classList.add("today");
+        var dd = pad2(dayNum);
+        if (entries[dd] && entries[dd].content && entries[dd].content.trim() !== ""){
+          var dot = document.createElement("span");
+          dot.className = "stamp-dot";
+          cell.appendChild(dot);
+        }
+        cell.addEventListener("click", (function(ds){
+          return function(){ openEditor(ds); };
+        })(dateStr));
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  // ---------------- rendering: editor ----------------
+  async function openEditor(dateStr){
+    selectedDateStr = dateStr;
+    var parts = dateStr.split("-");
+    var y = parseInt(parts[0],10), m = parseInt(parts[1],10), d = parseInt(parts[2],10);
+    var dObj = new Date(y, m-1, d);
+
+    document.getElementById("dateMain").textContent = m + "月" + d + "日";
+    document.getElementById("dateSub").textContent = weekdayNames[dObj.getDay()];
+
+    var ym = y + "-" + pad2(m);
+    var entries = await loadMonth(ym);
+    var dd = pad2(d);
+    var existing = entries[dd];
+
+    var textarea = document.getElementById("entryText");
+    textarea.value = existing ? existing.content : "";
+    updateCharCount();
+
+    document.getElementById("deleteBtn").style.display = existing ? "inline-block" : "none";
+    setSyncStatus(existing && existing.synced ? "ok" : "idle");
+
+    document.getElementById("calendarView").classList.remove("active");
+    document.getElementById("editorView").classList.add("active");
+    textarea.focus();
+  }
+
+  function closeEditor(){
+    document.getElementById("editorView").classList.remove("active");
+    document.getElementById("calendarView").classList.add("active");
+    renderCalendar();
+  }
+
+  function updateCharCount(){
+    var v = document.getElementById("entryText").value;
+    document.getElementById("charCount").textContent = v.length + " 字";
+  }
+
+  function setSyncStatus(state){
+    var dot = document.getElementById("syncDot");
+    var text = document.getElementById("syncText");
+    dot.className = "sync-dot";
+    if (state === "ok"){ dot.classList.add("ok"); text.textContent = "已同步"; }
+    else if (state === "pending"){ dot.classList.add("pending"); text.textContent = "同步中…"; }
+    else if (state === "err"){ dot.classList.add("err"); text.textContent = "同步失敗"; }
+    else { text.textContent = "尚未同步"; }
+  }
+
+  function playStamp(){
+    var el = document.getElementById("stampFeedback");
+    el.classList.remove("play");
+    void el.offsetWidth; // reflow to restart animation
+    el.classList.add("play");
+  }
+
+  // ---------------- save / delete ----------------
+  async function saveEntry(){
+    if (!selectedDateStr) return;
+    var parts = selectedDateStr.split("-");
+    var ym = parts[0] + "-" + parts[1];
+    var dd = parts[2];
+    var content = document.getElementById("entryText").value;
+    var updatedAt = new Date().toISOString();
+
+    var entries = await loadMonth(ym);
+    if (content.trim() === ""){
+      delete entries[dd];
+    } else {
+      entries[dd] = { content: content, updatedAt: updatedAt, synced: false };
+    }
+    await saveMonth(ym, entries);
+
+    if (content.trim() !== ""){
+      playStamp();
+      document.getElementById("deleteBtn").style.display = "inline-block";
+    } else {
+      document.getElementById("deleteBtn").style.display = "none";
+    }
+
+    if (content.trim() !== "" && settings.autoSync && settings.scriptUrl){
+      setSyncStatus("pending");
+      var ok = await syncOne(selectedDateStr, content, updatedAt);
+      if (ok){
+        entries[dd] && (entries[dd].synced = true);
+        await saveMonth(ym, entries);
+      }
+      setSyncStatus(ok ? "ok" : "err");
+    } else {
+      setSyncStatus("idle");
+    }
+  }
+
+  async function deleteEntry(){
+    if (!selectedDateStr) return;
+    var parts = selectedDateStr.split("-");
+    var ym = parts[0] + "-" + parts[1];
+    var dd = parts[2];
+    var entries = await loadMonth(ym);
+    delete entries[dd];
+    await saveMonth(ym, entries);
+    document.getElementById("entryText").value = "";
+    updateCharCount();
+    document.getElementById("deleteBtn").style.display = "none";
+    setSyncStatus("idle");
+  }
+
+  // ---------------- sync to Google Sheet ----------------
+  async function syncOne(date, content, updatedAt){
+    if (!settings.scriptUrl) return false;
+    try{
+      await fetch(settings.scriptUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight against Apps Script
+        body: JSON.stringify({ date: date, content: content, updatedAt: updatedAt })
+      });
+      return true;
+    }catch(e){
+      console.error("sync failed", e);
+      return false;
+    }
+  }
+
+  async function syncAll(){
+    var log = document.getElementById("modalLog");
+    if (!settings.scriptUrl){
+      log.textContent = "請先貼上 Web App URL。";
+      return;
+    }
+    log.textContent = "同步中…";
+    var all = await listAllEntries();
+    try{
+      await fetch(settings.scriptUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ entries: all })
+      });
+      settings.lastSyncedAt = new Date().toISOString();
+      await saveSettings();
+      log.textContent = "已送出 " + all.length + " 篇日記到 Google 文件。";
+    }catch(e){
+      log.textContent = "同步失敗，請確認網址是否正確、部署權限是否為「所有人」。";
+    }
+  }
+
+  // ---------------- settings modal ----------------
+  function openModal(){
+    document.getElementById("scriptUrlInput").value = settings.scriptUrl || "";
+    document.getElementById("autoSyncSwitch").classList.toggle("on", !!settings.autoSync);
+    document.getElementById("modalLog").textContent = settings.lastSyncedAt ? ("上次同步：" + new Date(settings.lastSyncedAt).toLocaleString("zh-TW")) : "";
+    document.getElementById("modalBackdrop").classList.add("active");
+  }
+  function closeModal(){
+    document.getElementById("modalBackdrop").classList.remove("active");
+  }
+
+  // ---------------- events ----------------
+  document.getElementById("prevBtn").addEventListener("click", function(){
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1);
+    renderCalendar();
+  });
+  document.getElementById("nextBtn").addEventListener("click", function(){
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1);
+    renderCalendar();
+  });
+  document.getElementById("todayBtn").addEventListener("click", function(){
+    viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    renderCalendar();
+  });
+  document.getElementById("backBtn").addEventListener("click", closeEditor);
+  document.getElementById("saveBtn").addEventListener("click", saveEntry);
+  document.getElementById("deleteBtn").addEventListener("click", deleteEntry);
+  document.getElementById("entryText").addEventListener("input", updateCharCount);
+
+  document.getElementById("gearBtn").addEventListener("click", openModal);
+  document.getElementById("modalCancel").addEventListener("click", closeModal);
+  document.getElementById("modalBackdrop").addEventListener("click", function(e){
+    if (e.target === document.getElementById("modalBackdrop")) closeModal();
+  });
+  document.getElementById("autoSyncSwitch").addEventListener("click", function(){
+    this.classList.toggle("on");
+  });
+  document.getElementById("modalSave").addEventListener("click", async function(){
+    settings.scriptUrl = document.getElementById("scriptUrlInput").value.trim();
+    settings.autoSync = document.getElementById("autoSyncSwitch").classList.contains("on");
+    await saveSettings();
+    document.getElementById("modalLog").textContent = "設定已儲存。";
+  });
+  document.getElementById("syncAllBtn").addEventListener("click", syncAll);
+
+  // ---------------- init ----------------
+  async function init(){
+    await loadSettings();
+    await renderCalendar();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
